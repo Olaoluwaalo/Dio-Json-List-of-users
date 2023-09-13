@@ -1,8 +1,8 @@
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
-import 'package:dio_json_list_of_users/models/list_of_users.dart';
-import 'package:dio_json_list_of_users/models/user.dart';
+import 'package:dio_json_list_of_users/model/single_user_response.dart';
+import 'package:dio_json_list_of_users/model/user.dart';
 import 'package:dio_json_list_of_users/services/http_service.dart';
 import 'package:flutter/material.dart';
 
@@ -14,64 +14,60 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final HttpService _httpService;
-  late List<User> users;
-  late ListOfUsers listOfUsers;
-  late Response response;
+  late final HttpService _service;
+  late SingleUserResponse _singleUserResponse;
+  late User users;
   bool isLoading = false;
+  Future getUser() async {
+    Response response;
 
-  @override
-  void initState() {
-    _httpService = HttpService();
-    listOfUsers = ListOfUsers(users);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _httpService;
-    super.dispose();
-  }
-
-  Future getListOfUsers() async {
     try {
       isLoading = true;
-      response = await _httpService.getRequest("/api/users?page=2");
+      response = await _service.getRequest("/api/users/2");
       isLoading = false;
+      if (response.statusCode == 200) {
+        setState(() {
+          _singleUserResponse = SingleUserResponse.fromJson(response.data);
+          users = _singleUserResponse.user;
+        });
+      } else {
+        isLoading = true;
+        log("An error occured");
+      }
     } on Exception catch (e) {
       log(e.toString());
     }
-    if (response.statusCode == 200) {
-      setState(() {
-        listOfUsers = ListOfUsers.fromJson(response.data);
-        users = listOfUsers.users;
-      });
-    } else {
-      isLoading = true;
-      log('An error occured');
-    }
+  }
+
+  @override
+  void initState() {
+    _service = HttpService();
+    _singleUserResponse = SingleUserResponse(user: users);
+    getUser();
+
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'List of users',
-          ),
+      appBar: AppBar(
+        toolbarHeight: 80,
+        backgroundColor: Colors.teal,
+        title: const Text(
+          "BLAQMAN'S APP",
+          style: TextStyle(color: Colors.white),
         ),
-        body: isLoading
-            ? const CircularProgressIndicator()
-            : ListView.builder(
-                itemBuilder: (context, index) {
-                  final user = users[index];
-                  return ListTile(
-                    title: Text(user.firstName),
-                    leading: Image.network(user.avatar),
-                    subtitle: Text(user.email),
-                  );
-                },
-                itemCount: users.length,
-              ));
+      ),
+      body: isLoading
+          ? const CircularProgressIndicator()
+          : Column(
+              children: [
+                Image.network(users.avatar),
+                Text(users.firstName),
+                Text(users.lastName)
+              ],
+            ),
+    );
   }
 }
